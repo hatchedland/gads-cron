@@ -1,32 +1,26 @@
 const { GoogleAdsApi } = require('google-ads-api');
 require('dotenv').config();
+const admin = require('firebase-admin');
 
-/**
- * Get detailed campaign data with active duration metrics (start to pause date)
- * For paused campaigns: shows metrics only for the period they were active
- * For active campaigns: shows metrics from start to current date
- * @param {string} customerId - Google Ads customer ID (without dashes)
- * @param {string} dateRange - Optional date range for the report (e.g., 'LAST_30_DAYS', 'THIS_MONTH', 'CUSTOM')
- * @param {string} startDate - Start date in YYYY-MM-DD format (required if dateRange is 'CUSTOM')
- * @param {string} endDate - End date in YYYY-MM-DD format (required if dateRange is 'CUSTOM')
- * @returns {Promise<Array>} Array of campaign data objects with active duration metrics
- */
-async function getCampaignData(customerId, dateRange = null, startDate = null, endDate = null) {
+const serviceAccount = JSON.parse(process.env.GCLOUD_SERVICE_ACCOUNT_KEY);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+async function getCampaignData(customerId) {
   try {
-    // Initialize Google Ads API client
     const client = new GoogleAdsApi({
       client_id: process.env.OAUTH_CLIENT_ID,
       client_secret: process.env.OAUTH_SECRET,
       developer_token: process.env.DEVELOPER_TOKEN,
     });
 
-    // Get customer instance
     const customer = client.Customer({
       customer_id: customerId,
       refresh_token: process.env.REFRESH_TOKEN,
     });
 
-    // First, get campaign basic info and status
     const campaignInfoQuery = `
       SELECT 
         campaign.id,
@@ -50,6 +44,7 @@ async function getCampaignData(customerId, dateRange = null, startDate = null, e
     
     for (const campaignRow of campaignInfoResult) {
       const campaignId = campaignRow.campaign.id;
+
       const campaignInfo = {
         id: campaignId,
         name: campaignRow.campaign.name,
@@ -87,6 +82,7 @@ async function getCampaignData(customerId, dateRange = null, startDate = null, e
         let totalClicks = 0;
         let lastActiveDate = campaignInfo.startDate;
         let activeDays = 0;
+
 
         // Process daily metrics to find last active date and calculate totals
         metricsResult.forEach(row => {
@@ -142,6 +138,7 @@ async function getCampaignData(customerId, dateRange = null, startDate = null, e
     }
 
     const campaigns = Array.from(campaignMap.values());
+
     // Helper function to format end date (handle Google's default far-future dates)
     const formatEndDate = (endDate, isPaused, lastActiveDate) => {
       if (isPaused) {
@@ -198,6 +195,7 @@ async function getCampaignData(customerId, dateRange = null, startDate = null, e
       return statusText;
     };
 
+    
     // Format the final data
     const formattedCampaigns = campaigns.map(campaign => {
       const costInCurrency = campaign.totalCost / 1000000;
@@ -205,7 +203,7 @@ async function getCampaignData(customerId, dateRange = null, startDate = null, e
       const dailyAvgCost = campaign.activeDays > 0 ? costInCurrency / campaign.activeDays : 0;
       
       return {
-        campaignId: campaign.id,
+        campaignId: campaign.id.toString(),
         campaignName: campaign.name,
         startDate: campaign.startDate,
         endDate: formatEndDate(campaign.endDate, campaign.isPaused, campaign.lastActiveDate),
@@ -233,86 +231,33 @@ async function getCampaignData(customerId, dateRange = null, startDate = null, e
   }
 }
 
-/**
- * Get overall campaign data with active duration metrics (start to pause/current)
- * @param {string} customerId - Google Ads customer ID
- * @returns {Promise<Array>} Campaign data array with active duration metrics
- */
-async function getOverallCampaignData(customerId) {
-  return await getCampaignData(customerId);
+
+
+async function overAllData() {
+    try {
+        const customerId = '5256988497';
+        const campaigns = await getCampaignData(customerId);
+        await saveGoogleAdsDataToFirestore(campaigns);
+    } catch (error) {
+        console.error('Error in example:', error.message);
+    }
 }
 
-/**
- * Get campaign data for a specific date range
- * @param {string} customerId - Google Ads customer ID
- * @param {string} startDate - Start date (YYYY-MM-DD)
- * @param {string} endDate - End date (YYYY-MM-DD)
- * @returns {Promise<Array>} Campaign data array
- */
-async function getCampaignDataCustomRange(customerId, startDate, endDate) {
-  return await getCampaignData(customerId, 'CUSTOM', startDate, endDate);
+async function saveGoogleAdsDataToFirestore(campaigns) {
+    const db = admin.firestore();
+    const collectionRef = db.collection('google_ads_campaigns');
+
+    for (const campaign of campaigns) {
+        if (!campaign.campaignId || typeof campaign.campaignId !== 'string' || campaign.campaignId.trim() === '') {
+            console.error('Campaign ID is missing or invalid. Skipping campaign:', campaign);
+            continue;
+        }
+        try {
+            await collectionRef.doc(campaign.campaignId).set(campaign);
+            console.log('Campaign data saved to Firestore successfully!');
+        } catch (error) {
+            console.error('Error saving campaign data to Firestore:', error);
+        }
+    }
 }
 
-/**
- * Get campaign data for predefined ranges
- * @param {string} customerId - Google Ads customer ID
- * @param {string} range - Predefined range ('LAST_7_DAYS', 'LAST_30_DAYS', 'THIS_MONTH', 'LAST_MONTH', etc.)
- * @returns {Promise<Array>} Campaign data array
- */
-async function getCampaignDataPredefined(customerId, range) {
-  return await getCampaignData(customerId, range);
-}
-
-// Example usage function
-async function example() {
-  try {
-    const customerId = '5256988497'; // Your Google Ads customer ID
-    
-    console.log('Fetching campaign active duration data...');
-    
-    // Get overall campaign data with active duration metrics - DEFAULT BEHAVIOR
-    const campaigns = await getOverallCampaignData(customerId);
-    
-    console.log('\n=== OVERALL CAMPAIGN PERFORMANCE REPORT ===\n');
-    
-    campaigns.forEach((campaign, index) => {
-      console.log(`${index + 1}. ${campaign.campaignName} (ID: ${campaign.campaignId})`);
-      console.log(`   Start Date: ${campaign.startDate}`);
-      console.log(`   End Date: ${campaign.endDate}`);
-      console.log(`   Total Cost: ${campaign.totalCost}`);
-      console.log(`   Total Conversions: ${campaign.totalConversions}`);
-      console.log(`   Conversion Value: ${campaign.totalConversionsValue}`);
-      console.log(`   Impressions: ${campaign.totalImpressions}`);
-      console.log(`   Clicks: ${campaign.totalClicks}`);
-      console.log(`   CTR: ${campaign.ctr}`);
-      console.log(`   Avg CPC: ${campaign.averageCpc}`);
-      console.log(`   Status: ${campaign.status}`);
-      console.log('   ' + '-'.repeat(50));
-    });
-
-    // Calculate totals
-    const totalCost = campaigns.reduce((sum, c) => sum + parseFloat(c.totalCost), 0);
-    const totalConversions = campaigns.reduce((sum, c) => sum + parseFloat(c.totalConversions), 0);
-    const totalConversionsValue = campaigns.reduce((sum, c) => sum + parseFloat(c.totalConversionsValue), 0);
-
-    console.log('\n=== SUMMARY ===');
-    console.log(`Total Campaigns: ${campaigns.length}`);
-    console.log(`Total Cost: $${totalCost.toFixed(2)}`);
-    console.log(`Total Conversions: ${totalConversions.toFixed(2)}`);
-    console.log(`Total Conversion Value: $${totalConversionsValue.toFixed(2)}`);
-
-  } catch (error) {
-    console.error('Error in example:', error.message);
-  }
-}
-
-module.exports = {
-  getCampaignData,
-  getOverallCampaignData,
-  getCampaignDataCustomRange,
-  getCampaignDataPredefined,
-  example
-};
-
-// Uncomment to run the example
-example();

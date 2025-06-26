@@ -1,0 +1,9 @@
+# version: "3.8"
+services:
+  cron:
+    build: .
+    env_file:
+      - .env
+    environment:
+      TZ: Asia/Calcutta
+    restart: always
