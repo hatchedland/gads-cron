@@ -67,5 +67,3 @@ async function getCampaignMetrics( campaign ) {
         console.error("Request failed:", error);
     }
 }
-
-getCampaignMetrics();

@@ -247,6 +247,7 @@ async function saveGoogleAdsDataToFirestore(campaigns) {
     const db = admin.firestore();
     const collectionRef = db.collection('google_ads_campaigns');
 
+
     for (const campaign of campaigns) {
         if (!campaign.campaignId || typeof campaign.campaignId !== 'string' || campaign.campaignId.trim() === '') {
             console.error('Campaign ID is missing or invalid. Skipping campaign:', campaign);
@@ -261,3 +262,4 @@ async function saveGoogleAdsDataToFirestore(campaigns) {
     }
 }
 
+overAllData()
