@@ -187,11 +187,6 @@ async function getCampaignData(customerId) {
         }
       }
       
-      // Add duration info for paused campaigns
-      if (isPaused) {
-        statusText += ` (Ran for ${activeDays} days)`;
-      }
-      
       return statusText;
     };
 
