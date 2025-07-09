@@ -247,19 +247,26 @@ async function saveGoogleAdsDataToFirestore(campaigns) {
     const db = admin.firestore();
     const collectionRef = db.collection('google_ads_campaigns');
 
-
     for (const campaign of campaigns) {
         if (!campaign.campaignId || typeof campaign.campaignId !== 'string' || campaign.campaignId.trim() === '') {
             console.error('Campaign ID is missing or invalid. Skipping campaign:', campaign);
             continue;
         }
+        
         try {
-            await collectionRef.doc(campaign.campaignId).set(campaign);
-            console.log('Campaign data saved to Firestore successfully!');
+            const docRef = collectionRef.doc(campaign.campaignId);
+            const docSnapshot = await docRef.get();
+            
+            if (docSnapshot.exists) {
+                await docRef.set(campaign, { merge: true });
+                console.log(`Campaign data updated in Firestore for Campaign ID: ${campaign.campaignId}`);
+            } else {
+                await docRef.set(campaign);
+                console.log(`Campaign data saved to Firestore for new Campaign ID: ${campaign.campaignId}`);
+            }
         } catch (error) {
             console.error('Error saving campaign data to Firestore:', error);
         }
     }
 }
-
 module.exports = overAllData;
