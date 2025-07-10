@@ -199,16 +199,17 @@ async function getCampaignData(customerId) {
       const costInCurrency = campaign.totalCost / 1000000;
       const averageCpc = campaign.totalClicks > 0 ? costInCurrency / campaign.totalClicks : 0;
       const advertisingChannelTypeMap = {
-        '0': 'UNKNOWN',
-        '1': 'SEARCH',
-        '2': 'DISPLAY',
-        '3': 'SHOPPING',
-        '4': 'HOTEL',
-        '5': 'VIDEO',
-        '6': 'MULTI_CHANNEL',
-        '7': 'APP',
-        '8': 'LOCAL',
-        '9': 'PERFORMANCE_MAX'
+        '0': 'UNSPECIFIED',
+        '1': 'UNKNOWN',
+        '2': 'SEARCH',
+        '3': 'DISPLAY',
+        '4': 'SHOPPING',
+        '5': 'HOTEL',
+        '6': 'VIDEO',
+        '7': 'MULTI_CHANNEL',
+        '8': 'APP',
+        '9': 'LOCAL',
+        '10': 'PERFORMANCE_MAX'
       };
       const dailyAvgCost = campaign.activeDays > 0 ? costInCurrency / campaign.activeDays : 0;
       
