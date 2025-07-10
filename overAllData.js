@@ -281,6 +281,5 @@ async function saveGoogleAdsDataToFirestore(campaigns) {
         }
     }
 }
-// module.exports = overAllData;
+module.exports = overAllData;
 
-overAllData()
