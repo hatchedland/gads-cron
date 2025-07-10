@@ -25,6 +25,7 @@ async function getCampaignData(customerId) {
       SELECT 
         campaign.id,
         campaign.name,
+        campaign.advertising_channel_type,
         campaign.start_date,
         campaign.end_date,
         campaign.status
@@ -48,6 +49,8 @@ async function getCampaignData(customerId) {
       const campaignInfo = {
         id: campaignId,
         name: campaignRow.campaign.name,
+        advertisingChannelType: campaignRow.campaign.advertising_channel_type,
+        medium: campaignRow.campaign.advertising_channel_type,
         startDate: campaignRow.campaign.start_date,
         endDate: campaignRow.campaign.end_date,
         status: campaignRow.campaign.status,
@@ -195,11 +198,24 @@ async function getCampaignData(customerId) {
     const formattedCampaigns = campaigns.map(campaign => {
       const costInCurrency = campaign.totalCost / 1000000;
       const averageCpc = campaign.totalClicks > 0 ? costInCurrency / campaign.totalClicks : 0;
+      const advertisingChannelTypeMap = {
+        '0': 'UNKNOWN',
+        '1': 'SEARCH',
+        '2': 'DISPLAY',
+        '3': 'SHOPPING',
+        '4': 'HOTEL',
+        '5': 'VIDEO',
+        '6': 'MULTI_CHANNEL',
+        '7': 'APP',
+        '8': 'LOCAL',
+        '9': 'PERFORMANCE_MAX'
+      };
       const dailyAvgCost = campaign.activeDays > 0 ? costInCurrency / campaign.activeDays : 0;
       
       return {
         campaignId: campaign.id.toString(),
         campaignName: campaign.name,
+        medium: advertisingChannelTypeMap[campaign.advertisingChannelType] || 'UNKNOWN',
         startDate: campaign.startDate,
         endDate: formatEndDate(campaign.endDate, campaign.isPaused, campaign.lastActiveDate),
         status: formatStatus(campaign.status, campaign.isPaused, campaign.activeDays),
@@ -217,6 +233,7 @@ async function getCampaignData(customerId) {
         lastActiveDate: campaign.lastActiveDate
       };
     });
+    console.log(formattedCampaigns);
 
     return formattedCampaigns;
 
@@ -264,4 +281,6 @@ async function saveGoogleAdsDataToFirestore(campaigns) {
         }
     }
 }
-module.exports = overAllData;
+// module.exports = overAllData;
+
+overAllData()
